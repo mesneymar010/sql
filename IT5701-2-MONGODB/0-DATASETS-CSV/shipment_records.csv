@@ -1,0 +1,11 @@
+Shipment_ID,Customer_ID,Source_City,Destination_City,Transport_Mode,Weight_KG,Shipping_Cost,Delivery_Status
+SH001,CU301,Chennai,Bengaluru,Road,120,4500,Delivered
+SH002,CU302,Coimbatore,Chennai,Rail,350,2800,In Transit
+SH003,CU303,Madurai,Trichy,Road,80,1600,Delivered
+SH004,CU301,Chennai,Hyderabad,Air,45,6200,Delayed
+SH005,CU304,Salem,Bengaluru,Road,210,3900,Delivered
+SH006,CU305,Trichy,Chennai,Rail,400,3000,In Transit
+SH007,CU306,Erode,Madurai,Road,65,1400,Delivered
+SH008,CU302,Coimbatore,Hyderabad,Air,30,5100,Delivered
+SH009,CU307,Chennai,Mumbai,Road,180,4700,Delayed
+SH010,CU308,Madurai,Bengaluru,Rail,320,2600,Delivered

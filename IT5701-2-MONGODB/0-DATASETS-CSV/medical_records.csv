@@ -1,0 +1,11 @@
+Patient_ID,Age,Gender,Diagnosis,Blood_Sugar,Blood_Pressure,Doctor_Specialization
+P101,45,Female,Diabetes,165,140/90,Endocrinology
+P102,52,Male,Hypertension,110,150/95,Cardiology
+P103,38,Female,Diabetes,145,130/85,Endocrinology
+P104,61,Male,Hypertension,120,160/100,Cardiology
+P105,29,Female,General Checkup,95,120/80,General Medicine
+P106,55,Male,Diabetes,180,145/95,Endocrinology
+P107,47,Female,Hypertension,105,135/90,Cardiology
+P108,34,Male,General Checkup,90,118/78,General Medicine
+P109,63,Female,Diabetes,172,150/92,Endocrinology
+P110,41,Male,General Checkup,98,122/82,General Medicine

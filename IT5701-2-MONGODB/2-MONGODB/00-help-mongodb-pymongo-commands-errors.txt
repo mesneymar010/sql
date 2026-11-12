@@ -1,0 +1,217 @@
+HELP : MongoDB + PyMongo on Windows (college PC)
+Reference file. Copy the line you need.
+
+============================================================
+1. CHECK WHAT IS INSTALLED (cmd)
+============================================================
+mongod --version          server version
+mongosh --version         new shell
+mongo --version           old shell
+py --version              python (if "py" fails, try: python --version)
+py -m pip show pymongo    pymongo version
+sc query MongoDB          is the server running as a service?
+
+============================================================
+2. START / STOP SERVER (cmd)
+============================================================
+-- installed as service (cmd as Administrator)
+net start MongoDB
+net stop MongoDB
+
+-- not a service: start manually, keep this window open
+mkdir C:\data\db
+mongod --dbpath C:\data\db
+
+-- mongod not recognized? use full path, e.g.
+"C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --dbpath C:\data\db
+(check folder name: dir "C:\Program Files\MongoDB\Server")
+
+-- ready when you see: "Waiting for connections" on port 27017
+
+============================================================
+3. INSTALL IF MISSING
+============================================================
+-- A) winget (cmd as Administrator), then reopen cmd
+winget install MongoDB.Server
+winget install MongoDB.Shell
+
+-- B) zip, no installer
+1. Download "MongoDB Community Server" zip and "MongoDB Shell" zip
+   from mongodb.com/try/download
+2. Extract both to Desktop
+3. cmd 1:  mkdir C:\Users\26120040\Desktop\mdata
+           "C:\Users\26120040\Desktop\mongodb-xxx\bin\mongod.exe" --dbpath "C:\Users\26120040\Desktop\mdata"
+4. cmd 2:  "C:\Users\26120040\Desktop\mongosh-xxx\bin\mongosh.exe"
+(Firewall popup -> Allow)
+
+============================================================
+4. SHELL BASICS (inside mongosh / mongo)
+============================================================
+show dbs                       list databases
+use mydb                       switch / create database
+db                             current database
+show collections               list collections
+db.users.find().pretty()       readable output (old shell)
+cls                            clear screen
+exit                           quit shell
+
+-- connect to a different host/port
+mongosh "mongodb://localhost:27017"
+mongo --host localhost --port 27017
+
+============================================================
+5. RUN A .js FILE
+============================================================
+-- from cmd
+mongosh myfile.js
+mongo myfile.js
+
+-- from inside the shell (use forward slashes)
+load("C:/Users/26120040/Desktop/myfile.js")
+
+-- inside a .js file:
+--   "use mydb" does NOT work  -> write: db = db.getSiblingDB("mydb")
+--   find() prints nothing     -> write: db.users.find().forEach(printjson)
+
+============================================================
+6. mongo (old) vs mongosh (new)
+============================================================
+SAME in both: insertOne, insertMany, find, findOne, updateOne, updateMany,
+              deleteOne, deleteMany, aggregate, distinct, sort, limit, drop
+
+Use the new names. Old ones are deprecated in mongosh:
+  insert()  -> insertOne() / insertMany()
+  update()  -> updateOne() / updateMany()
+  remove()  -> deleteOne() / deleteMany()
+  count()   -> countDocuments({})
+               (very old shell below 4.0: db.users.find().count())
+
+============================================================
+7. QUERY OPERATORS (quick list)
+============================================================
+$eq $ne $gt $gte $lt $lte $in $nin      comparison
+$and $or $not                           logical
+$exists  { phone: { $exists: true } }   field present
+/^A/     { name: /^A/ }                 starts with A
+/a$/     { name: /a$/ }                 ends with a
+/an/i    { name: /an/i }                contains "an", ignore case
+
+$push  db.users.updateOne({name:"Bob"}, {$push: {skills: "java"}})
+
+$set $unset $inc $mul $push $pull       update operators ($mul: multiply a field)
+
+$match $group $sort $project $limit     aggregate stages
+$sum $avg $min $max                     group accumulators
+$multiply $divide $add $subtract        math inside $project / $group
+$cond                                   if-else inside aggregate
+$expr                                   compare two fields in find (MongoDB 3.6+)
+db.users.aggregate([{ $group: { _id: "$city", maxAge: { $max: "$age" } } }])
+
+SQL -> MongoDB
+  WHERE            find({...})  or  { $match: {...} }
+  GROUP BY x       { $group: { _id: "$x", ... } }
+  COUNT(*)         { $sum: 1 }
+  SUM(a)           { $sum: "$a" }
+  SUM(a*b)         { $sum: { $multiply: ["$a", "$b"] } }
+  HAVING           { $match: {...} } after $group
+  ORDER BY a DESC  .sort({ a: -1 })  or  { $sort: { a: -1 } }
+  LIMIT / TOP 3    .limit(3)  or  { $limit: 3 }
+  SELECT a, b      find({}, { _id: 0, a: 1, b: 1 })
+  LIKE 'A%'        { name: /^A/ }
+  a < b (2 cols)   find({ $expr: { $lt: ["$a", "$b"] } })
+
+============================================================
+7b. LOAD A CSV INTO MONGODB (fastest first)
+============================================================
+A) Exam datasets: open datasets\mongo-<name>.js, copy the LOAD DATA block, paste in shell
+   All 9 at once: datasets\data-only\load-all-datasets.js
+
+B) Any new CSV, no pymongo needed:
+   py tools\csv_to_mongo_js.py new_file.csv > new_file.js
+   then copy new_file.js into the shell
+
+C) Any CSV with pymongo (loads + runs group/sum/avg/top 3/update/delete):
+   py pymongo-csv-load-and-query.py new_file.csv <group_field> <number_field>
+
+D) mongoimport (only if MongoDB Database Tools are installed; run in cmd, not in shell):
+   mongoimport --db examdb --collection retail_sales --type csv --headerline --file retail_sales.csv
+   (numbers are imported as numbers automatically)
+
+Dates are stored as text "2026-10-01": text compare still works for ranges
+  find({ Issue_Date: { $gte: "2026-09-05", $lte: "2026-09-12" } })
+
+============================================================
+8. PYMONGO : INSTALL THE RIGHT VERSION
+============================================================
+Step 1: check server version:  mongod --version
+Step 2: install
+  server 4.4 or newer   ->  py -m pip install pymongo
+  server 4.0 / 4.2      ->  py -m pip install "pymongo<4.14"
+  server 3.x            ->  py -m pip install "pymongo<4"
+Step 3: check:  py -c "import pymongo; print(pymongo.version)"
+
+(pip picks a pymongo that fits your Python automatically,
+ but NOT one that fits your server - that's why step 1 matters.)
+
+-- quick connection test
+py -c "from pymongo import MongoClient; print(MongoClient('mongodb://localhost:27017/', serverSelectionTimeoutMS=3000).server_info()['version'])"
+
+============================================================
+9. PYMONGO : NAMES (shell vs python)
+============================================================
+shell            python
+insertOne        insert_one
+insertMany       insert_many
+findOne          find_one
+updateOne        update_one
+updateMany       update_many
+deleteOne        delete_one
+deleteMany       delete_many
+countDocuments   count_documents
+sort({age:-1})   sort("age", -1)
+keys: age:       keys must be in quotes: "age":
+$gt              "$gt" (in quotes)
+
+DON'T use in python (removed in pymongo 4): insert(), update(), remove(), count()
+
+============================================================
+10. COMMON ERRORS
+============================================================
+'mongosh' is not recognized
+  -> try "mongo", or use full path to mongosh.exe, or reopen cmd after install
+
+'mongod' is not recognized
+  -> use full path: "C:\Program Files\MongoDB\Server\<ver>\bin\mongod.exe"
+
+ECONNREFUSED 127.0.0.1:27017  /  connect failed
+  -> server not running: net start MongoDB  or  mongod --dbpath C:\data\db
+
+NonExistentPath: Data directory C:\data\db not found
+  -> mkdir C:\data\db
+
+Address already in use (port 27017)
+  -> server is already running, just open mongosh
+
+System error 5 / Access is denied (net start)
+  -> open cmd as Administrator
+
+ServerSelectionTimeoutError (python)
+  -> server not running, or wrong URL. Start server first.
+
+ModuleNotFoundError: No module named 'pymongo'
+  -> py -m pip install pymongo   (use the same "py"/"python" you run the script with)
+
+'pip' is not recognized
+  -> py -m pip install pymongo
+
+ConfigurationError / "wire version" / "server version ... not supported"
+  -> pymongo too new for the server. See section 8.
+
+TypeError: 'Collection' object is not callable (python)
+  -> method name wrong or removed (count/insert/update/remove). See section 9.
+
+SyntaxError in shell
+  -> missing } or ], or used Python style "True" instead of true
+
+DuplicateKeyError / E11000
+  -> same _id inserted twice

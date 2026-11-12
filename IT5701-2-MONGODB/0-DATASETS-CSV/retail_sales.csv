@@ -1,0 +1,13 @@
+Order_ID,Customer_ID,Product_ID,Category,Quantity,Unit_Price,Region
+O1001,CU101,PR101,Electronics,2,15000,Chennai
+O1002,CU102,PR102,Clothing,3,1200,Coimbatore
+O1003,CU103,PR103,Grocery,10,150,Madurai
+O1004,CU101,PR104,Electronics,1,22000,Chennai
+O1005,CU104,PR105,Clothing,2,1800,Trichy
+O1006,CU105,PR106,Home,4,2500,Salem
+O1007,CU102,PR101,Electronics,1,15000,Coimbatore
+O1008,CU106,PR103,Grocery,8,150,Chennai
+O1009,CU107,PR107,Home,2,4200,Madurai
+O1010,CU103,PR105,Clothing,1,1800,Madurai
+O1011,CU108,PR104,Electronics,1,22000,Trichy
+O1012,CU105,PR106,Home,2,2500,Salem
