@@ -1,0 +1,13 @@
+Student_ID,Student_Name,Department,Course_ID,Total_Classes,Attended_Classes
+S101,Arun Kumar,IT,C101,40,36
+S101,Arun Kumar,IT,C102,38,31
+S102,Priya Sharma,CSE,C101,40,30
+S102,Priya Sharma,CSE,C102,38,34
+S103,Kavin Raj,IT,C101,40,39
+S103,Kavin Raj,IT,C103,36,32
+S104,Meena Devi,ECE,C101,40,27
+S104,Meena Devi,ECE,C103,36,30
+S105,Rahul Das,CSE,C102,38,28
+S105,Rahul Das,CSE,C103,36,33
+S106,Nithya Rao,ECE,C101,40,37
+S106,Nithya Rao,ECE,C102,38,36

@@ -1,0 +1,244 @@
+================================================================================
+APACHE PIG - SOLVED SCENARIO BLUEPRINTS & PROBLEM CODES
+================================================================================
+
+--------------------------------------------------------------------------------
+PROBLEM 1: WORD COUNT & TEXT TOKENIZATION (UNSTRUCTURED TEXT)
+Input File : input.txt (raw sentences)
+Key Ops    : LOAD, TOKENIZE, FLATTEN, LOWER, GROUP BY, COUNT, ORDER BY
+--------------------------------------------------------------------------------
+-- 1. Load lines as single character arrays
+lines = LOAD 'input.txt' AS (line:chararray);
+
+-- 2. Tokenize string into a bag of words and flatten into separate tuples
+words = FOREACH lines GENERATE FLATTEN(TOKENIZE(line)) AS word;
+
+-- 3. Clean tokens: lowercase and trim whitespace
+clean_words = FOREACH words GENERATE LOWER(TRIM(word)) AS word;
+
+-- 4. Eliminate blank rows
+valid_words = FILTER clean_words BY word != '';
+
+-- 5. Group by each word
+grouped_words = GROUP valid_words BY word;
+
+-- 6. Calculate frequency count
+word_counts = FOREACH grouped_words GENERATE 
+    group AS word, 
+    COUNT(valid_words) AS count;
+
+-- 7. Order by highest frequency
+sorted_word_counts = ORDER word_counts BY count DESC;
+
+-- 8. Output
+DUMP sorted_word_counts;
+
+
+--------------------------------------------------------------------------------
+PROBLEM 2: WEATHER & SENSOR METRICS (STRUCTURED CSV)
+Input File : weather.csv (year:int, temp:double, quality:int)
+Key Ops    : FILTER, GROUP BY, MAX, MIN, AVG, ROUND_TO, COUNT
+--------------------------------------------------------------------------------
+-- 1. Load CSV data with explicit schema
+raw_weather = LOAD 'weather.csv' USING PigStorage(',') 
+    AS (year:int, temp:double, quality:int);
+
+-- 2. Filter out invalid/corrupted records (e.g., 9999 sentinel or non-valid quality)
+valid_weather = FILTER raw_weather BY temp != 9999.0 AND quality == 1;
+
+-- 3. Group by year
+by_year = GROUP valid_weather BY year;
+
+-- 4. Calculate aggregates per year
+weather_stats = FOREACH by_year GENERATE 
+    group AS year, 
+    MAX(valid_weather.temp) AS max_temp,
+    MIN(valid_weather.temp) AS min_temp,
+    ROUND_TO(AVG(valid_weather.temp), 2) AS avg_temp,
+    COUNT(valid_weather) AS total_readings;
+
+-- 5. Sort by max temperature descending
+sorted_weather = ORDER weather_stats BY max_temp DESC;
+
+-- 6. Output to terminal and store to folder
+DUMP sorted_weather;
+-- STORE sorted_weather INTO 'output/weather_summary' USING PigStorage(',');
+
+
+--------------------------------------------------------------------------------
+PROBLEM 3: ACADEMIC GRADING & CONDITIONAL TERNARY (BINCOND)
+Input File : students.csv (id:int, name:chararray, dept:chararray, m1:int, m2:int)
+Key Ops    : Arithmetic, Bincond (? :), Nested Conditions, UPPER
+--------------------------------------------------------------------------------
+-- 1. Load data
+students = LOAD 'students.csv' USING PigStorage(',') 
+    AS (id:int, name:chararray, dept:chararray, m1:int, m2:int);
+
+-- 2. Compute total, average, pass/fail status, and multi-tier grade
+graded_students = FOREACH students GENERATE 
+    id, 
+    UPPER(name) AS student_name, 
+    dept, 
+    (m1 + m2) AS total_marks,
+    ((m1 + m2) / 2.0) AS avg_marks,
+    -- Simple Pass/Fail condition ($avg \ge 50.0$)
+    (((m1 + m2) / 2.0) >= 50.0 ? 'PASS' : 'FAIL') AS status,
+    -- Multi-tier nested grade: Distinction (>=75), First Class (>=60), Pass (>=50), Fail (<50)
+    (((m1 + m2) / 2.0) >= 75.0 ? 'DISTINCTION' : 
+        (((m1 + m2) / 2.0) >= 60.0 ? 'FIRST_CLASS' : 
+            (((m1 + m2) / 2.0) >= 50.0 ? 'PASS_CLASS' : 'FAIL'))) AS grade;
+
+-- 3. Output
+DUMP graded_students;
+
+
+--------------------------------------------------------------------------------
+PROBLEM 4: SALARY ANALYTICS & SIMULATING SQL 'HAVING'
+Input File : emp.csv (id:int, name:chararray, dept:chararray, salary:double, join_year:int)
+Key Ops    : GROUP BY, Aggregate in FOREACH, FILTER aggregated column
+--------------------------------------------------------------------------------
+-- 1. Load employees
+emp = LOAD 'emp.csv' USING PigStorage(',') 
+    AS (id:int, name:chararray, dept:chararray, salary:double, join_year:int);
+
+-- 2. Group by department
+dept_group = GROUP emp BY dept;
+
+-- 3. Compute department metrics
+dept_metrics = FOREACH dept_group GENERATE 
+    group AS department, 
+    COUNT(emp) AS emp_count,
+    ROUND_TO(AVG(emp.salary), 2) AS avg_sal,
+    MAX(emp.salary) AS max_sal,
+    MIN(emp.salary) AS min_sal;
+
+-- 4. SIMULATE 'HAVING': Filter aggregated results (e.g., avg_sal > 45000 and count >= 2)
+high_paying_depts = FILTER dept_metrics BY avg_sal > 45000.0 AND emp_count >= 2;
+
+-- 5. Sort by average salary descending
+sorted_depts = ORDER high_paying_depts BY avg_sal DESC;
+
+-- 6. Output
+DUMP sorted_depts;
+
+
+--------------------------------------------------------------------------------
+PROBLEM 5: TOP-N RECORDS PER GROUP (NESTED FOREACH)
+Input File : emp.csv (id:int, name:chararray, dept:chararray, salary:double, join_year:int)
+Goal       : Find the single highest earner *inside each* department
+Key Ops    : GROUP BY, Nested FOREACH { ORDER BY ... LIMIT }, FLATTEN
+--------------------------------------------------------------------------------
+-- 1. Group records by department
+dept_group = GROUP emp BY dept;
+
+-- 2. Nested FOREACH block to order and limit the inner bag per group
+top_earner_per_dept = FOREACH dept_group {
+    sorted_inner = ORDER emp BY salary DESC;
+    top_record = LIMIT sorted_inner 1;
+    GENERATE FLATTEN(top_record);
+};
+
+-- 3. Output (yields 1 tuple per department representing the max earner)
+DUMP top_earner_per_dept;
+
+
+--------------------------------------------------------------------------------
+PROBLEM 6: TWO-TABLE JOINS & AMBIGUITY RESOLUTION
+Input Files: emp.csv (id, name, dept, salary, join_year)
+             dept.csv (dept_name, building, city)
+Key Ops    : JOIN (INNER), LEFT OUTER JOIN, Column Disambiguation (::)
+--------------------------------------------------------------------------------
+-- 1. Load relations
+emp = LOAD 'emp.csv' USING PigStorage(',') 
+    AS (id:int, name:chararray, dept:chararray, salary:double, join_year:int);
+
+dept = LOAD 'dept.csv' USING PigStorage(',') 
+    AS (dept_name:chararray, building:chararray, city:chararray);
+
+-- 2A. INNER JOIN (matches only where emp.dept == dept.dept_name)
+inner_res = JOIN emp BY dept, dept BY dept_name;
+
+clean_inner = FOREACH inner_res GENERATE 
+    emp::id AS id, 
+    emp::name AS name, 
+    emp::dept AS dept, 
+    dept::building AS location,
+    dept::city AS city,
+    emp::salary AS salary;
+
+DUMP clean_inner;
+
+-- 2B. LEFT OUTER JOIN (preserves all employees even if department has no location)
+left_res = JOIN emp BY dept LEFT OUTER, dept BY dept_name;
+
+clean_left = FOREACH left_res GENERATE 
+    emp::name AS name, 
+    emp::dept AS dept, 
+    (dept::building IS NOT NULL ? dept::building : 'No Building Assigned') AS building,
+    (dept::city IS NOT NULL ? dept::city : 'Unknown City') AS city;
+
+DUMP clean_left;
+
+
+--------------------------------------------------------------------------------
+PROBLEM 7: MULTI-WAY CONDITIONAL SEGREGATION (SPLIT)
+Input File : students.csv (id, name, dept, m1, m2)
+Goal       : Partition data into multiple streams in a single pass
+Key Ops    : SPLIT ... INTO ... IF
+--------------------------------------------------------------------------------
+students = LOAD 'students.csv' USING PigStorage(',') 
+    AS (id:int, name:chararray, dept:chararray, m1:int, m2:int);
+
+-- Partition into 3 separate relations
+SPLIT students INTO 
+    toppers IF (m1 >= 80 AND m2 >= 80),
+    average IF (m1 >= 50 AND m2 >= 50 AND (m1 < 80 OR m2 < 80)),
+    arrears IF (m1 < 50 OR m2 < 50);
+
+-- Display partitions separately
+DUMP toppers;
+DUMP average;
+DUMP arrears;
+
+
+--------------------------------------------------------------------------------
+PROBLEM 8: COGROUP & SET UNION
+Input Files: emp.csv, dept.csv
+Key Ops    : COGROUP, UNION, DISTINCT
+--------------------------------------------------------------------------------
+-- 1. COGROUP: Groups across both tables under common key without full join
+cogrouped = COGROUP emp BY dept, dept BY dept_name;
+-- Schema: {group: chararray, emp: {(id, name, dept, salary, join_year)}, dept: {(dept_name, building, city)}}
+DUMP cogrouped;
+
+-- 2. UNION: Combine two datasets with identical schemas
+it_emps = FILTER emp BY dept == 'IT';
+hr_emps = FILTER emp BY dept == 'HR';
+combined_emps = UNION it_emps, hr_emps;
+DUMP combined_emps;
+
+-- 3. Deduplicate
+unique_records = DISTINCT combined_emps;
+DUMP unique_records;
+
+
+--------------------------------------------------------------------------------
+PROBLEM 9: GLOBAL AGGREGATE (GROUP ALL)
+Goal       : Calculate overall company average salary and total employee count
+Key Ops    : GROUP ALL, AVG, SUM, COUNT
+--------------------------------------------------------------------------------
+emp = LOAD 'emp.csv' USING PigStorage(',') 
+    AS (id:int, name:chararray, dept:chararray, salary:double, join_year:int);
+
+-- Group all rows into a single bag
+all_grouped = GROUP emp ALL;
+
+-- Compute global statistics across the entire dataset
+global_stats = FOREACH all_grouped GENERATE 
+    COUNT(emp) AS total_employees,
+    ROUND_TO(AVG(emp.salary), 2) AS overall_avg_salary,
+    MAX(emp.salary) AS absolute_max_salary,
+    MIN(emp.salary) AS absolute_min_salary,
+    SUM(emp.salary) AS total_payroll;
+
+DUMP global_stats;

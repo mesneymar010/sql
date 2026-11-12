@@ -1,0 +1,11 @@
+Transaction_ID,Customer_ID,Account_Type,Transaction_Type,Amount,Branch,Transaction_Date
+T001,CU201,Savings,Deposit,5000,Chennai,2026-10-01
+T002,CU202,Current,Withdrawal,1800,Coimbatore,2026-10-01
+T003,CU201,Savings,Withdrawal,750,Chennai,2026-10-02
+T004,CU203,Savings,Deposit,12000,Madurai,2026-10-02
+T005,CU204,Current,Deposit,8500,Trichy,2026-10-03
+T006,CU205,Savings,Withdrawal,2200,Salem,2026-10-03
+T007,CU202,Current,Deposit,3000,Coimbatore,2026-10-04
+T008,CU206,Savings,Deposit,6400,Chennai,2026-10-04
+T009,CU203,Savings,Withdrawal,1500,Madurai,2026-10-05
+T010,CU207,Current,Deposit,10000,Trichy,2026-10-05

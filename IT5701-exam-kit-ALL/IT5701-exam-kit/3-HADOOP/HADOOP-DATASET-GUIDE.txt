@@ -1,0 +1,496 @@
+HADOOP : EXAM DATASETS GUIDE
+Every question below = GROUP BY. Two ways to answer:
+  1) GroupBy.java (no code change):
+       hadoop jar groupby.jar GroupBy <in> <out> <keyCol> <valueCol> <op> [filterCol=value]
+  2) Payroll.java (write code): mapper key = data[keyCol], value = data[valueCol],
+     reducer = op (see HOW-TO-CHANGE-PAYROLL.txt). Filter: if (data[col].trim().equals("value"))
+  Python backup (Windows, from 3-HADOOP folder; Ubuntu: cat + python3 + forward slashes)
+Columns counted from 0. Header line is skipped automatically. Expected output from the given CSVs.
+Payroll.java (IntWritable) prints whole numbers; GroupBy (DoubleWritable) prints 10500.0
+
+======================================================================
+BANK_TRANSACTIONS   (datasets/bank_transactions.csv, 10 rows)
+======================================================================
+Columns: 0=Transaction_ID  1=Customer_ID  2=Account_Type  3=Transaction_Type  4=Amount  5=Branch  6=Transaction_Date
+HDFS: hdfs dfs -mkdir -p /user/hadoop/bank_transactions ; hdfs dfs -put -f datasets/bank_transactions.csv /user/hadoop/bank_transactions/
+
+-- Total amount per branch
+   GroupBy : ... GroupBy /user/hadoop/bank_transactions /user/hadoop/out 5 4 sum
+   Python  : type datasets\bank_transactions.csv | py python-backup\mapper.py 5 4 | sort | py python-backup\reducer.py sum
+   Payroll : key data[5], value data[4], reducer SUM
+      Chennai                12150.0
+      Coimbatore             4800.0
+      Madurai                13500.0
+      Salem                  2200.0
+      Trichy                 18500.0
+
+-- Total DEPOSITS per branch
+   GroupBy : ... GroupBy /user/hadoop/bank_transactions /user/hadoop/out 5 4 sum 3=Deposit
+   Python  : type datasets\bank_transactions.csv | py python-backup\mapper.py 5 4 | sort | py python-backup\reducer.py sum   (filter: use GroupBy or Payroll)
+   Payroll : key data[5], value data[4], reducer SUM, filter data[3] equals "Deposit"
+      Chennai                11400.0
+      Coimbatore             3000.0
+      Madurai                12000.0
+      Trichy                 18500.0
+
+-- Average amount per account type
+   GroupBy : ... GroupBy /user/hadoop/bank_transactions /user/hadoop/out 2 4 avg
+   Python  : type datasets\bank_transactions.csv | py python-backup\mapper.py 2 4 | sort | py python-backup\reducer.py avg
+   Payroll : key data[2], value data[4], reducer AVG
+      Current                5825.0
+      Savings                4641.67
+
+-- Number of transactions per type
+   GroupBy : ... GroupBy /user/hadoop/bank_transactions /user/hadoop/out 3 4 count
+   Python  : type datasets\bank_transactions.csv | py python-backup\mapper.py 3 4 | sort | py python-backup\reducer.py count
+   Payroll : key data[3], value data[4], reducer COUNT
+      Deposit                6
+      Withdrawal             4
+
+-- Highest transaction per customer
+   GroupBy : ... GroupBy /user/hadoop/bank_transactions /user/hadoop/out 1 4 max
+   Python  : type datasets\bank_transactions.csv | py python-backup\mapper.py 1 4 | sort | py python-backup\reducer.py max
+   Payroll : key data[1], value data[4], reducer MAX
+      CU201                  5000.0
+      CU202                  3000.0
+      CU203                  12000.0
+      CU204                  8500.0
+      CU205                  2200.0
+      CU206                  6400.0
+      CU207                  10000.0
+
+======================================================================
+LEARNING_ACTIVITY   (datasets/learning_activity.csv, 12 rows)
+======================================================================
+Columns: 0=Activity_ID  1=Student_ID  2=Course_ID  3=Activity_Type  4=Time_Spent_Minutes  5=Completion_Percentage  6=Quiz_Score
+HDFS: hdfs dfs -mkdir -p /user/hadoop/learning_activity ; hdfs dfs -put -f datasets/learning_activity.csv /user/hadoop/learning_activity/
+
+-- Average quiz score per course
+   GroupBy : ... GroupBy /user/hadoop/learning_activity /user/hadoop/out 2 6 avg
+   Python  : type datasets\learning_activity.csv | py python-backup\mapper.py 2 6 | sort | py python-backup\reducer.py avg
+   Payroll : key data[2], value data[6], reducer AVG
+      CR101                  80.5
+      CR102                  84.25
+      CR103                  84.75
+
+-- Total time spent per student
+   GroupBy : ... GroupBy /user/hadoop/learning_activity /user/hadoop/out 1 4 sum
+   Python  : type datasets\learning_activity.csv | py python-backup\mapper.py 1 4 | sort | py python-backup\reducer.py sum
+   Payroll : key data[1], value data[4], reducer SUM
+      S101                   55.0
+      S102                   70.0
+      S103                   48.0
+      S104                   50.0
+      S105                   55.0
+      S106                   74.0
+
+-- Activities per activity type
+   GroupBy : ... GroupBy /user/hadoop/learning_activity /user/hadoop/out 3 4 count
+   Python  : type datasets\learning_activity.csv | py python-backup\mapper.py 3 4 | sort | py python-backup\reducer.py count
+   Payroll : key data[3], value data[4], reducer COUNT
+      Quiz                   6
+      Reading                2
+      Video                  4
+
+-- Highest quiz score per course
+   GroupBy : ... GroupBy /user/hadoop/learning_activity /user/hadoop/out 2 6 max
+   Python  : type datasets\learning_activity.csv | py python-backup\mapper.py 2 6 | sort | py python-backup\reducer.py max
+   Payroll : key data[2], value data[6], reducer MAX
+      CR101                  92.0
+      CR102                  96.0
+      CR103                  95.0
+
+-- Average score of Quiz activities per student
+   GroupBy : ... GroupBy /user/hadoop/learning_activity /user/hadoop/out 1 6 avg 3=Quiz
+   Python  : type datasets\learning_activity.csv | py python-backup\mapper.py 1 6 | sort | py python-backup\reducer.py avg   (filter: use GroupBy or Payroll)
+   Payroll : key data[1], value data[6], reducer AVG, filter data[3] equals "Quiz"
+      S101                   76.0
+      S102                   68.0
+      S103                   95.0
+      S104                   81.0
+      S105                   70.0
+      S106                   87.0
+
+======================================================================
+LIBRARY_TRANSACTIONS   (datasets/library_transactions.csv, 10 rows)
+======================================================================
+Columns: 0=Transaction_ID  1=Member_ID  2=Book_ID  3=Category  4=Issue_Date  5=Return_Date  6=Fine_Amount
+HDFS: hdfs dfs -mkdir -p /user/hadoop/library_transactions ; hdfs dfs -put -f datasets/library_transactions.csv /user/hadoop/library_transactions/
+
+-- Total fine per member
+   GroupBy : ... GroupBy /user/hadoop/library_transactions /user/hadoop/out 1 6 sum
+   Python  : type datasets\library_transactions.csv | py python-backup\mapper.py 1 6 | sort | py python-backup\reducer.py sum
+   Payroll : key data[1], value data[6], reducer SUM
+      MB101                  15.0
+      MB102                  10.0
+      MB103                  12.0
+      MB104                  20.0
+      MB105                  5.0
+      MB106                  8.0
+
+-- Books issued per category
+   GroupBy : ... GroupBy /user/hadoop/library_transactions /user/hadoop/out 3 6 count
+   Python  : type datasets\library_transactions.csv | py python-backup\mapper.py 3 6 | sort | py python-backup\reducer.py count
+   Payroll : key data[3], value data[6], reducer COUNT
+      Computer Science       2
+      Data Science           4
+      History                1
+      Literature             2
+      Mathematics            1
+
+-- Highest fine per category
+   GroupBy : ... GroupBy /user/hadoop/library_transactions /user/hadoop/out 3 6 max
+   Python  : type datasets\library_transactions.csv | py python-backup\mapper.py 3 6 | sort | py python-backup\reducer.py max
+   Payroll : key data[3], value data[6], reducer MAX
+      Computer Science       0.0
+      Data Science           15.0
+      History                12.0
+      Literature             10.0
+      Mathematics            20.0
+
+-- Total fine for whole library
+   GroupBy : ... GroupBy /user/hadoop/library_transactions /user/hadoop/out -1 6 sum
+   Python  : type datasets\library_transactions.csv | py python-backup\mapper.py -1 6 | sort | py python-backup\reducer.py sum
+   Payroll : key data["Total"], value data[6], reducer SUM
+      Total                  70.0
+
+======================================================================
+MEDICAL_RECORDS   (datasets/medical_records.csv, 10 rows)
+======================================================================
+Columns: 0=Patient_ID  1=Age  2=Gender  3=Diagnosis  4=Blood_Sugar  5=Blood_Pressure  6=Doctor_Specialization
+HDFS: hdfs dfs -mkdir -p /user/hadoop/medical_records ; hdfs dfs -put -f datasets/medical_records.csv /user/hadoop/medical_records/
+
+-- Patients per diagnosis
+   GroupBy : ... GroupBy /user/hadoop/medical_records /user/hadoop/out 3 1 count
+   Python  : type datasets\medical_records.csv | py python-backup\mapper.py 3 1 | sort | py python-backup\reducer.py count
+   Payroll : key data[3], value data[1], reducer COUNT
+      Diabetes               4
+      General Checkup        3
+      Hypertension           3
+
+-- Average age per gender
+   GroupBy : ... GroupBy /user/hadoop/medical_records /user/hadoop/out 2 1 avg
+   Python  : type datasets\medical_records.csv | py python-backup\mapper.py 2 1 | sort | py python-backup\reducer.py avg
+   Payroll : key data[2], value data[1], reducer AVG
+      Female                 44.4
+      Male                   48.6
+
+-- Average blood sugar per specialization
+   GroupBy : ... GroupBy /user/hadoop/medical_records /user/hadoop/out 6 4 avg
+   Python  : type datasets\medical_records.csv | py python-backup\mapper.py 6 4 | sort | py python-backup\reducer.py avg
+   Payroll : key data[6], value data[4], reducer AVG
+      Cardiology             111.67
+      Endocrinology          165.5
+      General Medicine       94.33
+
+-- Highest blood sugar per diagnosis
+   GroupBy : ... GroupBy /user/hadoop/medical_records /user/hadoop/out 3 4 max
+   Python  : type datasets\medical_records.csv | py python-backup\mapper.py 3 4 | sort | py python-backup\reducer.py max
+   Payroll : key data[3], value data[4], reducer MAX
+      Diabetes               180.0
+      General Checkup        98.0
+      Hypertension           120.0
+
+-- Average sugar of Female patients per diagnosis
+   GroupBy : ... GroupBy /user/hadoop/medical_records /user/hadoop/out 3 4 avg 2=Female
+   Python  : type datasets\medical_records.csv | py python-backup\mapper.py 3 4 | sort | py python-backup\reducer.py avg   (filter: use GroupBy or Payroll)
+   Payroll : key data[3], value data[4], reducer AVG, filter data[2] equals "Female"
+      Diabetes               160.67
+      General Checkup        95.0
+      Hypertension           105.0
+
+======================================================================
+PHARMACY_INVENTORY   (datasets/pharmacy_inventory.csv, 10 rows)
+======================================================================
+Columns: 0=Medicine_ID  1=Medicine_Name  2=Category  3=Supplier_ID  4=Unit_Price  5=Stock_Quantity  6=Reorder_Level
+HDFS: hdfs dfs -mkdir -p /user/hadoop/pharmacy_inventory ; hdfs dfs -put -f datasets/pharmacy_inventory.csv /user/hadoop/pharmacy_inventory/
+
+-- Total stock per category
+   GroupBy : ... GroupBy /user/hadoop/pharmacy_inventory /user/hadoop/out 2 5 sum
+   Python  : type datasets\pharmacy_inventory.csv | py python-backup\mapper.py 2 5 | sort | py python-backup\reducer.py sum
+   Payroll : key data[2], value data[5], reducer SUM
+      Analgesic              540.0
+      Antibiotic             130.0
+      Antidiabetic           90.0
+      Antihistamine          180.0
+      Antihypertensive       45.0
+      Electrolyte            300.0
+      Gastrointestinal       130.0
+      Supplement             65.0
+
+-- Average price per supplier
+   GroupBy : ... GroupBy /user/hadoop/pharmacy_inventory /user/hadoop/out 3 4 avg
+   Python  : type datasets\pharmacy_inventory.csv | py python-backup\mapper.py 3 4 | sort | py python-backup\reducer.py avg
+   Payroll : key data[3], value data[4], reducer AVG
+      SUP01                  3.0
+      SUP02                  4.83
+      SUP03                  9.0
+      SUP04                  3.25
+
+-- Medicines per supplier
+   GroupBy : ... GroupBy /user/hadoop/pharmacy_inventory /user/hadoop/out 3 4 count
+   Python  : type datasets\pharmacy_inventory.csv | py python-backup\mapper.py 3 4 | sort | py python-backup\reducer.py count
+   Payroll : key data[3], value data[4], reducer COUNT
+      SUP01                  3
+      SUP02                  3
+      SUP03                  2
+      SUP04                  2
+
+-- Costliest medicine price per category
+   GroupBy : ... GroupBy /user/hadoop/pharmacy_inventory /user/hadoop/out 2 4 max
+   Python  : type datasets\pharmacy_inventory.csv | py python-backup\mapper.py 2 4 | sort | py python-backup\reducer.py max
+   Payroll : key data[2], value data[4], reducer MAX
+      Analgesic              3.0
+      Antibiotic             12.0
+      Antidiabetic           6.0
+      Antihistamine          3.5
+      Antihypertensive       4.5
+      Electrolyte            1.5
+      Gastrointestinal       5.0
+      Supplement             2.0
+
+-- Stock value (Unit_Price x Stock_Quantity) per supplier  [decimals -> DoubleWritable]
+   Payroll.java only (computed value), mapper lines:
+    String dept = data[3].trim();
+    double salary = Double.parseDouble(data[4].trim()) * Double.parseDouble(data[5].trim());
+   reducer SUM
+      SUP01                  2000.0
+      SUP02                  932.5
+      SUP03                  1200.0
+      SUP04                  1100.0
+
+======================================================================
+RETAIL_SALES   (datasets/retail_sales.csv, 12 rows)
+======================================================================
+Columns: 0=Order_ID  1=Customer_ID  2=Product_ID  3=Category  4=Quantity  5=Unit_Price  6=Region
+HDFS: hdfs dfs -mkdir -p /user/hadoop/retail_sales ; hdfs dfs -put -f datasets/retail_sales.csv /user/hadoop/retail_sales/
+
+-- Total quantity sold per category
+   GroupBy : ... GroupBy /user/hadoop/retail_sales /user/hadoop/out 3 4 sum
+   Python  : type datasets\retail_sales.csv | py python-backup\mapper.py 3 4 | sort | py python-backup\reducer.py sum
+   Payroll : key data[3], value data[4], reducer SUM
+      Clothing               6.0
+      Electronics            5.0
+      Grocery                18.0
+      Home                   8.0
+
+-- Orders per region
+   GroupBy : ... GroupBy /user/hadoop/retail_sales /user/hadoop/out 6 4 count
+   Python  : type datasets\retail_sales.csv | py python-backup\mapper.py 6 4 | sort | py python-backup\reducer.py count
+   Payroll : key data[6], value data[4], reducer COUNT
+      Chennai                3
+      Coimbatore             2
+      Madurai                3
+      Salem                  2
+      Trichy                 2
+
+-- Highest unit price per category
+   GroupBy : ... GroupBy /user/hadoop/retail_sales /user/hadoop/out 3 5 max
+   Python  : type datasets\retail_sales.csv | py python-backup\mapper.py 3 5 | sort | py python-backup\reducer.py max
+   Payroll : key data[3], value data[5], reducer MAX
+      Clothing               1800.0
+      Electronics            22000.0
+      Grocery                150.0
+      Home                   4200.0
+
+-- Total quantity per customer
+   GroupBy : ... GroupBy /user/hadoop/retail_sales /user/hadoop/out 1 4 sum
+   Python  : type datasets\retail_sales.csv | py python-backup\mapper.py 1 4 | sort | py python-backup\reducer.py sum
+   Payroll : key data[1], value data[4], reducer SUM
+      CU101                  3.0
+      CU102                  4.0
+      CU103                  11.0
+      CU104                  2.0
+      CU105                  6.0
+      CU106                  8.0
+      CU107                  2.0
+      CU108                  1.0
+
+-- Quantity of Electronics per region
+   GroupBy : ... GroupBy /user/hadoop/retail_sales /user/hadoop/out 6 4 sum 3=Electronics
+   Python  : type datasets\retail_sales.csv | py python-backup\mapper.py 6 4 | sort | py python-backup\reducer.py sum   (filter: use GroupBy or Payroll)
+   Payroll : key data[6], value data[4], reducer SUM, filter data[3] equals "Electronics"
+      Chennai                3.0
+      Coimbatore             1.0
+      Trichy                 1.0
+
+-- Revenue (Quantity x Unit_Price) per region
+   Payroll.java only (computed value), mapper lines:
+    String dept = data[6].trim();
+    int salary = Integer.parseInt(data[4].trim()) * Integer.parseInt(data[5].trim());
+   reducer SUM
+      Chennai                53200
+      Coimbatore             18600
+      Madurai                11700
+      Salem                  15000
+      Trichy                 25600
+
+======================================================================
+SHIPMENT_RECORDS   (datasets/shipment_records.csv, 10 rows)
+======================================================================
+Columns: 0=Shipment_ID  1=Customer_ID  2=Source_City  3=Destination_City  4=Transport_Mode  5=Weight_KG  6=Shipping_Cost  7=Delivery_Status
+HDFS: hdfs dfs -mkdir -p /user/hadoop/shipment_records ; hdfs dfs -put -f datasets/shipment_records.csv /user/hadoop/shipment_records/
+
+-- Total shipping cost per transport mode
+   GroupBy : ... GroupBy /user/hadoop/shipment_records /user/hadoop/out 4 6 sum
+   Python  : type datasets\shipment_records.csv | py python-backup\mapper.py 4 6 | sort | py python-backup\reducer.py sum
+   Payroll : key data[4], value data[6], reducer SUM
+      Air                    11300.0
+      Rail                   8400.0
+      Road                   16100.0
+
+-- Shipments per delivery status
+   GroupBy : ... GroupBy /user/hadoop/shipment_records /user/hadoop/out 7 5 count
+   Python  : type datasets\shipment_records.csv | py python-backup\mapper.py 7 5 | sort | py python-backup\reducer.py count
+   Payroll : key data[7], value data[5], reducer COUNT
+      Delayed                2
+      Delivered              6
+      In Transit             2
+
+-- Average weight per transport mode
+   GroupBy : ... GroupBy /user/hadoop/shipment_records /user/hadoop/out 4 5 avg
+   Python  : type datasets\shipment_records.csv | py python-backup\mapper.py 4 5 | sort | py python-backup\reducer.py avg
+   Payroll : key data[4], value data[5], reducer AVG
+      Air                    37.5
+      Rail                   356.67
+      Road                   131.0
+
+-- Total cost per source city
+   GroupBy : ... GroupBy /user/hadoop/shipment_records /user/hadoop/out 2 6 sum
+   Python  : type datasets\shipment_records.csv | py python-backup\mapper.py 2 6 | sort | py python-backup\reducer.py sum
+   Payroll : key data[2], value data[6], reducer SUM
+      Chennai                15400.0
+      Coimbatore             7900.0
+      Erode                  1400.0
+      Madurai                4200.0
+      Salem                  3900.0
+      Trichy                 3000.0
+
+-- Delayed shipments per transport mode
+   GroupBy : ... GroupBy /user/hadoop/shipment_records /user/hadoop/out 4 5 count 7=Delayed
+   Python  : type datasets\shipment_records.csv | py python-backup\mapper.py 4 5 | sort | py python-backup\reducer.py count   (filter: use GroupBy or Payroll)
+   Payroll : key data[4], value data[5], reducer COUNT, filter data[7] equals "Delayed"
+      Air                    1
+      Road                   1
+
+-- Cost per kg per transport mode = total cost / total weight -> use 2 jobs, or avg of (cost/weight) per row  [DoubleWritable, AVERAGE]
+   Payroll.java only (computed value), mapper lines:
+    String dept = data[4].trim();
+    double salary = Double.parseDouble(data[6].trim()) / Double.parseDouble(data[5].trim());
+   reducer AVG
+      Air                    153.89
+      Rail                   7.88
+      Road                   24.74
+
+======================================================================
+STUDENT_ATTENDANCE   (datasets/student_attendance.csv, 12 rows)
+======================================================================
+Columns: 0=Student_ID  1=Student_Name  2=Department  3=Course_ID  4=Total_Classes  5=Attended_Classes
+HDFS: hdfs dfs -mkdir -p /user/hadoop/student_attendance ; hdfs dfs -put -f datasets/student_attendance.csv /user/hadoop/student_attendance/
+
+-- Total attended classes per department
+   GroupBy : ... GroupBy /user/hadoop/student_attendance /user/hadoop/out 2 5 sum
+   Python  : type datasets\student_attendance.csv | py python-backup\mapper.py 2 5 | sort | py python-backup\reducer.py sum
+   Payroll : key data[2], value data[5], reducer SUM
+      CSE                    125.0
+      ECE                    130.0
+      IT                     138.0
+
+-- Average attended classes per course
+   GroupBy : ... GroupBy /user/hadoop/student_attendance /user/hadoop/out 3 5 avg
+   Python  : type datasets\student_attendance.csv | py python-backup\mapper.py 3 5 | sort | py python-backup\reducer.py avg
+   Payroll : key data[3], value data[5], reducer AVG
+      C101                   33.8
+      C102                   32.25
+      C103                   31.67
+
+-- Records (student-course) per department
+   GroupBy : ... GroupBy /user/hadoop/student_attendance /user/hadoop/out 2 5 count
+   Python  : type datasets\student_attendance.csv | py python-backup\mapper.py 2 5 | sort | py python-backup\reducer.py count
+   Payroll : key data[2], value data[5], reducer COUNT
+      CSE                    4
+      ECE                    4
+      IT                     4
+
+-- Lowest attended per course
+   GroupBy : ... GroupBy /user/hadoop/student_attendance /user/hadoop/out 3 5 min
+   Python  : type datasets\student_attendance.csv | py python-backup\mapper.py 3 5 | sort | py python-backup\reducer.py min
+   Payroll : key data[3], value data[5], reducer MIN
+      C101                   27.0
+      C102                   28.0
+      C103                   30.0
+
+-- Average attendance % per department  [decimals -> DoubleWritable, AVERAGE reducer]
+   Payroll.java only (computed value), mapper lines:
+    String dept = data[2].trim();
+    double salary = Double.parseDouble(data[5].trim()) * 100 / Double.parseDouble(data[4].trim());
+   reducer AVG
+      CSE                    82.46
+      ECE                    84.52
+      IT                     89.49
+
+======================================================================
+WEB_CLICKS   (datasets/web_clicks.csv, 12 rows)
+======================================================================
+Columns: 0=Click_ID  1=User_ID  2=Country  3=Device_Type  4=Page_Category  5=Click_Time  6=Session_ID  7=Duration_Seconds
+HDFS: hdfs dfs -mkdir -p /user/hadoop/web_clicks ; hdfs dfs -put -f datasets/web_clicks.csv /user/hadoop/web_clicks/
+
+-- Clicks per country
+   GroupBy : ... GroupBy /user/hadoop/web_clicks /user/hadoop/out 2 7 count
+   Python  : type datasets\web_clicks.csv | py python-backup\mapper.py 2 7 | sort | py python-backup\reducer.py count
+   Payroll : key data[2], value data[7], reducer COUNT
+      India                  6
+      UK                     3
+      USA                    3
+
+-- Total duration per session
+   GroupBy : ... GroupBy /user/hadoop/web_clicks /user/hadoop/out 6 7 sum
+   Python  : type datasets\web_clicks.csv | py python-backup\mapper.py 6 7 | sort | py python-backup\reducer.py sum
+   Payroll : key data[6], value data[7], reducer SUM
+      S101                   85.0
+      S102                   125.0
+      S103                   130.0
+      S104                   95.0
+      S105                   120.0
+      S106                   55.0
+      S107                   40.0
+      S108                   32.0
+
+-- Average duration per device
+   GroupBy : ... GroupBy /user/hadoop/web_clicks /user/hadoop/out 3 7 avg
+   Python  : type datasets\web_clicks.csv | py python-backup\mapper.py 3 7 | sort | py python-backup\reducer.py avg
+   Payroll : key data[3], value data[7], reducer AVG
+      Desktop                71.25
+      Mobile                 44.5
+      Tablet                 65.0
+
+-- Clicks per page category
+   GroupBy : ... GroupBy /user/hadoop/web_clicks /user/hadoop/out 4 7 count
+   Python  : type datasets\web_clicks.csv | py python-backup\mapper.py 4 7 | sort | py python-backup\reducer.py count
+   Payroll : key data[4], value data[7], reducer COUNT
+      Blog                   1
+      Checkout               3
+      Home                   4
+      Products               4
+
+-- Longest click per user
+   GroupBy : ... GroupBy /user/hadoop/web_clicks /user/hadoop/out 1 7 max
+   Python  : type datasets\web_clicks.csv | py python-backup\mapper.py 1 7 | sort | py python-backup\reducer.py max
+   Payroll : key data[1], value data[7], reducer MAX
+      U101                   60.0
+      U102                   90.0
+      U103                   85.0
+      U104                   75.0
+      U105                   120.0
+      U106                   55.0
+      U107                   40.0
+      U108                   32.0
+
+-- Mobile clicks per country
+   GroupBy : ... GroupBy /user/hadoop/web_clicks /user/hadoop/out 2 7 count 3=Mobile
+   Python  : type datasets\web_clicks.csv | py python-backup\mapper.py 2 7 | sort | py python-backup\reducer.py count   (filter: use GroupBy or Payroll)
+   Payroll : key data[2], value data[7], reducer COUNT, filter data[3] equals "Mobile"
+      India                  3
+      UK                     2
+      USA                    1
+

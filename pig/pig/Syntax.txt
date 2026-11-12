@@ -1,0 +1,221 @@
+================================================================================
+APACHE PIG - MASTER SYNTAX TEMPLATES CHEATSHEET
+================================================================================
+
+--------------------------------------------------------------------------------
+1. LOAD STATEMENTS (DEFINING RELATIONS)
+--------------------------------------------------------------------------------
+-- Comma-separated (CSV)
+rel = LOAD 'file.csv' USING PigStorage(',') AS (col1:int, col2:chararray, col3:double);
+
+-- Tab-separated (Default)
+rel = LOAD 'file.tsv' USING PigStorage('\t') AS (col1:chararray, col2:int);
+
+-- Custom delimiter (Pipe, Space, Colon)
+rel = LOAD 'file.txt' USING PigStorage('|') AS (c1:chararray, c2:chararray);
+rel = LOAD 'file.txt' USING PigStorage(' ') AS (word:chararray);
+
+-- Load entire line as raw text
+lines = LOAD 'input.txt' AS (line:chararray);
+
+-- Positional notation if schema omitted ($0, $1, $2...)
+raw = LOAD 'file.csv' USING PigStorage(',');
+res = FOREACH raw GENERATE $0 AS id, $1 AS name;
+
+-- Skip header row
+raw_with_header = LOAD 'file.csv' USING PigStorage(',');
+no_header = FILTER raw_with_header BY $0 != 'id';
+
+
+--------------------------------------------------------------------------------
+2. STORE STATEMENTS (SAVING OUTPUT)
+--------------------------------------------------------------------------------
+STORE rel INTO 'output_directory' USING PigStorage(',');
+STORE rel INTO 'output_directory' USING PigStorage('\t');
+
+
+--------------------------------------------------------------------------------
+3. FILTER (WHERE CLAUSE EQUIVALENT)
+--------------------------------------------------------------------------------
+-- Numeric comparison
+res = FILTER rel BY col1 >= 50 AND col2 < 100;
+
+-- String exact match
+res = FILTER rel BY dept == 'CSE' OR dept == 'IT';
+
+-- String inequality
+res = FILTER rel BY status != 'REJECTED';
+
+-- Regular expression pattern match
+res = FILTER rel BY name MATCHES 'A.*';      -- Starts with A
+res = FILTER rel BY email MATCHES '.*@gmail\\.com';
+
+-- Null validations
+res = FILTER rel BY column IS NOT NULL;
+res = FILTER rel BY column IS NULL;
+
+
+--------------------------------------------------------------------------------
+4. FOREACH ... GENERATE (COLUMN PROJECTION & COMPUTATIONS)
+--------------------------------------------------------------------------------
+-- Simple column selection
+res = FOREACH rel GENERATE col1, col2;
+
+-- Column alias renaming
+res = FOREACH rel GENERATE col1 AS user_id, col2 AS user_name;
+
+-- Arithmetic calculations
+res = FOREACH rel GENERATE id, (m1 + m2) AS total, ((m1 + m2) / 2.0) AS avg;
+
+-- Explicit Type Casting: (type)field
+res = FOREACH rel GENERATE (chararray)id AS str_id, (double)int_val AS dbl_val;
+
+-- Bincond (Ternary Conditional): (condition ? true_val : false_val)
+res = FOREACH rel GENERATE name, (score >= 50 ? 'PASS' : 'FAIL') AS status;
+
+-- Nested Bincond (Multi-tier IF-ELSE)
+res = FOREACH rel GENERATE name, 
+    (score >= 75 ? 'GRADE_A' : 
+        (score >= 50 ? 'GRADE_B' : 'GRADE_C')) AS grade;
+
+
+--------------------------------------------------------------------------------
+5. GROUP BY STATEMENTS
+--------------------------------------------------------------------------------
+-- Group by single column
+-- Output schema: {group: <type_of_col>, rel: {(col1, col2, ...)}}
+grouped = GROUP rel BY col1;
+
+-- Group by composite / multiple columns
+-- Access keys in FOREACH as: group.dept, group.year
+grouped = GROUP rel BY (dept, year);
+
+-- Global Group (all rows into 1 bag for overall aggregate)
+grouped_all = GROUP rel ALL;
+
+
+--------------------------------------------------------------------------------
+6. AGGREGATES INSIDE FOREACH (AFTER GROUP BY)
+--------------------------------------------------------------------------------
+summary = FOREACH grouped GENERATE 
+    group AS key_name,
+    COUNT(rel) AS total_rows,            -- ignores nulls
+    COUNT_STAR(rel) AS all_rows,         -- includes nulls
+    SUM(rel.num_col) AS total_val,
+    AVG(rel.num_col) AS avg_val,
+    MIN(rel.num_col) AS min_val,
+    MAX(rel.num_col) AS max_val;
+
+
+--------------------------------------------------------------------------------
+7. ORDER BY & LIMIT (SORTING & TOP-N)
+--------------------------------------------------------------------------------
+-- Sort ascending
+sorted_asc = ORDER rel BY col1 ASC;
+
+-- Sort descending
+sorted_desc = ORDER rel BY col1 DESC;
+
+-- Multi-column sort
+sorted_multi = ORDER rel BY col1 ASC, col2 DESC;
+
+-- Limit top N rows
+top_n = LIMIT sorted_desc 10;
+
+
+--------------------------------------------------------------------------------
+8. DISTINCT & UNION & SPLIT
+--------------------------------------------------------------------------------
+-- Remove duplicate tuples
+unique_rows = DISTINCT rel;
+
+-- Combine two relations (must have compatible schemas)
+combined = UNION rel1, rel2;
+
+-- Split relation conditionally into multiple sets
+SPLIT rel INTO 
+    set_a IF condition1,
+    set_b IF condition2,
+    set_c IF condition3;
+
+
+--------------------------------------------------------------------------------
+9. JOIN OPERATORS
+--------------------------------------------------------------------------------
+-- Inner Join
+joined = JOIN A BY id, B BY id;
+
+-- Left Outer Join
+joined_left = JOIN A BY id LEFT OUTER, B BY id;
+
+-- Right Outer Join
+joined_right = JOIN A BY id RIGHT OUTER, B BY id;
+
+-- Full Outer Join
+joined_full = JOIN A BY id FULL OUTER, B BY id;
+
+-- Cartesian Product
+cross_joined = CROSS A, B;
+
+-- Disambiguating fields using :: operator
+projected = FOREACH joined GENERATE A::id AS id, A::name AS name, B::dept AS dept;
+
+
+--------------------------------------------------------------------------------
+10. COGROUP OPERATOR
+--------------------------------------------------------------------------------
+-- Groups tuples from multiple relations on matching key into distinct bags
+cogrouped = COGROUP A BY key_col, B BY key_col;
+-- Schema: {group: key_type, A: {(...), (...)}, B: {(...), (...)}}
+
+
+--------------------------------------------------------------------------------
+11. NESTED FOREACH (OPERATIONS WITHIN EACH GROUP)
+--------------------------------------------------------------------------------
+grouped = GROUP rel BY group_key;
+top_records = FOREACH grouped {
+    sorted_inner = ORDER rel BY sort_col DESC;
+    top_one = LIMIT sorted_inner 1;
+    GENERATE FLATTEN(top_one);
+};
+
+
+--------------------------------------------------------------------------------
+12. TOKENIZE & FLATTEN (TEXT PROCESSING)
+--------------------------------------------------------------------------------
+-- Split text string into bag of word tuples
+tokenized = FOREACH lines GENERATE TOKENIZE(line) AS bag_of_words;
+
+-- Explode bag into individual rows
+flat_words = FOREACH lines GENERATE FLATTEN(TOKENIZE(line)) AS word;
+
+
+--------------------------------------------------------------------------------
+13. BUILT-IN FUNCTIONS QUICK SYNTAX
+--------------------------------------------------------------------------------
+-- String Functions
+LOWER(str)
+UPPER(str)
+TRIM(str)
+LTRIM(str)
+RTRIM(str)
+SUBSTRING(str, startIndex, stopIndex)    -- 0-indexed
+INDEXOF(str, 'target', startPos)
+CONCAT(str1, str2)
+STARTSWITH(str, 'prefix')                -- returns true/false
+ENDSWITH(str, 'suffix')
+REPLACE(str, 'old', 'new')
+SIZE(str)
+
+-- Math Functions
+ABS(num)
+CEIL(num)
+FLOOR(num)
+ROUND(num)
+ROUND_TO(num, decimalPlaces)             -- e.g., ROUND_TO(3.14159, 2) -> 3.14
+SQRT(num)
+RANDOM()                                 -- returns 0.0 to 1.0
+
+-- Bag Functions
+IsEmpty(bag)                             -- returns true if bag has 0 rows
+BagToString(bag, 'delimiter')

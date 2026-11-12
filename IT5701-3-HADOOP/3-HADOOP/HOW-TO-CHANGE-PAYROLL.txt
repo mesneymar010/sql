@@ -1,0 +1,135 @@
+HADOOP MAPREDUCE : HOW TO CHANGE Payroll.java FOR ANY QUESTION
+
+MapReduce = SQL GROUP BY
+  SELECT dept, SUM(salary) FROM emp GROUP BY dept
+  MAPPER  -> outputs (dept, salary)      key = GROUP BY column, value = number
+  REDUCER -> gets (dept, [s1, s2, ...])  does SUM / AVG / COUNT / MAX / MIN
+
+STEPS
+1. Look at one line of data, count columns from 0
+     1,John Doe,Engineering,5000
+     0   1        2         3
+2. Mapper: key = group-by column, value = number column
+3. Reducer: pick the math below
+4. Driver (main): don't touch
+   (only if you rename the class: change "public class Payroll",
+    "Payroll.class" and the name in the run command)
+
+------------------------------------------------------------
+CHANGE IN MAPPER (inside try { })
+------------------------------------------------------------
+DIFFERENT COLUMNS : e.g. group by city (col 4), sum marks (col 5)
+    String dept = data[4].trim();
+    int salary = Integer.parseInt(data[5].trim());
+
+COUNT (how many per group) : value is 1, reducer stays SUM
+    context.write(new Text(dept), new IntWritable(1));
+
+FILTER (only salary > 5000)
+    if (salary > 5000) {
+        context.write(new Text(dept), new IntWritable(salary));
+    }
+
+GRAND TOTAL (one answer for whole file) : same key for every line
+    context.write(new Text("Total"), new IntWritable(salary));
+
+DIFFERENT SEPARATOR
+    split(",")      comma
+    split("\t")     tab
+    split("\\s+")   spaces
+
+------------------------------------------------------------
+CHANGE IN REDUCER (replace the body of reduce)
+------------------------------------------------------------
+SUM (default)
+    int sum = 0;
+    for (IntWritable v : values) {
+        sum += v.get();
+    }
+    context.write(key, new IntWritable(sum));
+
+AVERAGE
+    int sum = 0, count = 0;
+    for (IntWritable v : values) {
+        sum += v.get();
+        count++;
+    }
+    context.write(key, new IntWritable(sum / count));
+
+MAX
+    int max = Integer.MIN_VALUE;
+    for (IntWritable v : values) {
+        if (v.get() > max) max = v.get();
+    }
+    context.write(key, new IntWritable(max));
+
+MIN
+    int min = Integer.MAX_VALUE;
+    for (IntWritable v : values) {
+        if (v.get() < min) min = v.get();
+    }
+    context.write(key, new IntWritable(min));
+
+------------------------------------------------------------
+MANY RESULTS IN ONE LINE (total, avg, max together) : 3 changes
+------------------------------------------------------------
+1. Reducer header : last type IntWritable -> Text
+    public static class PayrollReducer extends Reducer<Text, IntWritable, Text, Text> {
+
+2. Reducer body
+    int sum = 0, count = 0, max = Integer.MIN_VALUE;
+    for (IntWritable v : values) {
+        sum += v.get();
+        count++;
+        if (v.get() > max) max = v.get();
+    }
+    context.write(key, new Text("total=" + sum + " avg=" + (sum / count) + " max=" + max));
+
+3. main : replace the setOutputValueClass line with these two
+    job.setMapOutputValueClass(IntWritable.class);
+    job.setOutputValueClass(Text.class);
+
+------------------------------------------------------------
+FILTER BY TEXT (only Deposit rows) : in mapper
+------------------------------------------------------------
+    if (data[3].trim().equals("Deposit")) {
+        context.write(new Text(dept), new IntWritable(salary));
+    }
+
+------------------------------------------------------------
+COMPUTED VALUE (revenue = quantity * price) : in mapper
+------------------------------------------------------------
+    String dept = data[6].trim();
+    int salary = Integer.parseInt(data[4].trim()) * Integer.parseInt(data[5].trim());
+
+------------------------------------------------------------
+DECIMALS (2.5, 8.0, percentages) : IntWritable -> DoubleWritable
+------------------------------------------------------------
+1. import org.apache.hadoop.io.DoubleWritable;
+2. Replace every IntWritable with DoubleWritable (mapper, reducer, main)
+3. Integer.parseInt -> Double.parseDouble
+4. int salary -> double salary,   int sum -> double sum
+   percentage example:
+     double salary = Double.parseDouble(data[5].trim()) * 100 / Double.parseDouble(data[4].trim());
+   average reducer:
+     context.write(key, new DoubleWritable(sum / count));
+
+------------------------------------------------------------
+NO CODE CHANGE AT ALL : GroupBy.java (see HADOOP-DATASET-GUIDE.txt)
+------------------------------------------------------------
+hadoop jar groupby.jar GroupBy <input> <output> <keyCol> <valueCol> <sum|avg|count|max|min> [filterCol=value]
+
+------------------------------------------------------------
+WORD COUNT : use WordCount.java as it is (input: any text file)
+------------------------------------------------------------
+
+------------------------------------------------------------
+TESTED OUTPUT with employees.csv
+------------------------------------------------------------
+SUM     Engineering 10500  HR 8200  Sales 12500
+AVG     Engineering 5250   HR 4100  Sales 6250
+COUNT   Engineering 2      HR 2     Sales 2
+MAX     Engineering 5500   HR 4200  Sales 6500
+MIN     Engineering 5000   HR 4000  Sales 6000
+FILTER  Engineering 5500   Sales 12500
+TOTAL   Total 31200

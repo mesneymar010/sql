@@ -1,0 +1,168 @@
+HELP : HADOOP commands and fixes
+(Ubuntu/WSL commands. Windows: same commands, scripts end in .cmd, use %HADOOP_HOME% not $HADOOP_HOME)
+
+============================================================
+1. CHECK
+============================================================
+hadoop version
+java -version
+javac -version
+echo $HADOOP_HOME          (Windows: echo %HADOOP_HOME%)
+echo $JAVA_HOME            (Windows: echo %JAVA_HOME%)
+jps                        running daemons
+
+Browser:
+  http://localhost:9870    HDFS (NameNode)  (Hadoop 2.x: 50070)
+  http://localhost:8088    YARN jobs
+
+============================================================
+2. START / STOP
+============================================================
+start-dfs.sh               NameNode, DataNode, SecondaryNameNode
+start-yarn.sh              ResourceManager, NodeManager
+start-all.sh               both (older labs use this)
+stop-yarn.sh
+stop-dfs.sh
+stop-all.sh
+
+============================================================
+3. HDFS COMMANDS
+============================================================
+hdfs dfs -ls /
+hdfs dfs -ls /user/hadoop/input
+hdfs dfs -mkdir -p /user/hadoop/input
+hdfs dfs -put -f employees.csv /user/hadoop/input/
+hdfs dfs -cat /user/hadoop/input/employees.csv
+hdfs dfs -cat /user/hadoop/output/part-r-00000
+hdfs dfs -get /user/hadoop/output/part-r-00000 result.txt
+hdfs dfs -rm /user/hadoop/input/employees.csv
+hdfs dfs -rm -r -f /user/hadoop/output
+hdfs dfsadmin -report
+hdfs dfsadmin -safemode get
+hdfs dfsadmin -safemode leave
+
+(old labs: "hadoop fs" = "hdfs dfs", both work)
+
+============================================================
+4. JOB COMMANDS
+============================================================
+mapred job -list
+mapred job -kill <job_id>
+yarn application -list
+yarn application -kill <application_id>
+
+============================================================
+5. COMMON ERRORS
+============================================================
+Output directory ... already exists
+  -> hdfs dfs -rm -r -f /user/hadoop/output
+
+Call From ... to localhost:9000 failed: Connection refused
+  -> HDFS not running: start-dfs.sh, then jps
+  -> still no NameNode: hdfs namenode -format  (ERASES HDFS data), then start-dfs.sh
+
+jps shows no DataNode
+  -> stop-dfs.sh
+     rm -rf /tmp/hadoop-$USER/dfs/data   (or the dfs.datanode.data.dir in hdfs-site.xml)
+     start-dfs.sh
+
+jps shows no NameNode
+  -> hdfs namenode -format, then start-dfs.sh
+
+Name node is in safe mode
+  -> hdfs dfsadmin -safemode leave
+
+Input path does not exist
+  -> hdfs dfs -ls /user/hadoop/input  (file not uploaded or wrong path)
+
+ClassNotFoundException: Payroll
+  -> class name in run command must match "public class Payroll"
+  -> jar built from classes folder: jar -cvf payroll.jar -C classes .
+
+package org.apache.hadoop... does not exist (javac)
+  -> classpath missing: javac -cp "$(hadoop classpath)" ...
+
+UnsupportedClassVersionError
+  -> compiled with newer Java than Hadoop runs with
+  -> javac --release 8 -cp "$(hadoop classpath)" -d classes Payroll.java   (or --release 11)
+
+JAVA_HOME is not set
+  -> export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+  -> also set it in $HADOOP_HOME/etc/hadoop/hadoop-env.sh
+
+ssh: connect to host localhost port 22: Connection refused
+  -> sudo service ssh start
+
+Permission denied (publickey,password) on start-dfs.sh
+  -> ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+     cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+     chmod 0600 ~/.ssh/authorized_keys
+
+pdsh@...: localhost: connect: Connection refused
+  -> export PDSH_RCMD_TYPE=ssh
+
+Output file is empty / missing groups
+  -> wrong column number, or numbers have decimals (5000.50)
+     check: hdfs dfs -cat /user/hadoop/input/employees.csv
+     decimals: use DoubleWritable + Double.parseDouble instead of IntWritable + Integer.parseInt
+
+Windows: Could not locate winutils.exe / HADOOP_HOME unset / UnsatisfiedLinkError
+  -> Hadoop on Windows needs winutils.exe and hadoop.dll in %HADOOP_HOME%\bin
+  -> easier: use WSL (Ubuntu) or the Python backup
+
+Job stuck at "Running job" / map 0% forever
+  -> YARN not running: start-yarn.sh, jps
+  -> or run in local mode (RUN-STEPS.txt section C)
+
+============================================================
+6. INSTALL (LAST RESORT, Ubuntu/WSL, needs internet, ~20-30 min)
+============================================================
+sudo apt update
+sudo apt install -y openjdk-11-jdk ssh pdsh
+Download hadoop-3.x.x.tar.gz from hadoop.apache.org/releases.html
+tar -xzf hadoop-3.x.x.tar.gz
+mv hadoop-3.x.x ~/hadoop
+
+Add to ~/.bashrc, then run: source ~/.bashrc
+  export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+  export HADOOP_HOME=~/hadoop
+  export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+  export PDSH_RCMD_TYPE=ssh
+
+Also put the JAVA_HOME line in ~/hadoop/etc/hadoop/hadoop-env.sh
+
+Quickest check (no config needed, local mode):
+  hadoop version
+  -> now RUN-STEPS.txt section C works
+
+For HDFS (pseudo-distributed), edit inside <configuration></configuration>:
+
+~/hadoop/etc/hadoop/core-site.xml
+  <property><name>fs.defaultFS</name><value>hdfs://localhost:9000</value></property>
+
+~/hadoop/etc/hadoop/hdfs-site.xml
+  <property><name>dfs.replication</name><value>1</value></property>
+
+~/hadoop/etc/hadoop/mapred-site.xml
+  <property><name>mapreduce.framework.name</name><value>yarn</value></property>
+  <property><name>mapreduce.application.classpath</name><value>$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/*:$HADOOP_MAPRED_HOME/share/hadoop/mapreduce/lib/*</value></property>
+
+~/hadoop/etc/hadoop/yarn-site.xml
+  <property><name>yarn.nodemanager.aux-services</name><value>mapreduce_shuffle</value></property>
+  <property><name>yarn.nodemanager.env-whitelist</name><value>JAVA_HOME,HADOOP_COMMON_HOME,HADOOP_HDFS_HOME,HADOOP_CONF_DIR,CLASSPATH_PREPEND_DISTCACHE,HADOOP_YARN_HOME,HADOOP_HOME,PATH,LANG,TZ,HADOOP_MAPRED_HOME</value></property>
+
+Passwordless ssh:
+  sudo service ssh start
+  ssh-keygen -t rsa -P '' -f ~/.ssh/id_rsa
+  cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+  chmod 0600 ~/.ssh/authorized_keys
+  ssh localhost      (should log in without password, then type exit)
+
+Format + start:
+  hdfs namenode -format
+  start-dfs.sh
+  start-yarn.sh
+  jps
+
+Java version for Hadoop 3.3 / 3.4 : Java 8 or 11
+Hadoop 3.5 : Java 17

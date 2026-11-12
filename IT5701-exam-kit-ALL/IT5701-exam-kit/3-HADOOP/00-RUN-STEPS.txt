@@ -1,0 +1,124 @@
+HADOOP : RUN STEPS (type in this order)
+
+First find out where Hadoop is:
+  Ubuntu / WSL terminal :  hadoop version
+  Windows cmd           :  hadoop version
+Whichever works -> use that section.
+(WSL: open "Ubuntu" from Start menu. Windows files are at /mnt/c/Users/<name>/Desktop)
+
+============================================================
+A. UBUNTU / WSL
+============================================================
+cd ~/Desktop/IT5701-exam-kit/3-HADOOP
+
+start-dfs.sh
+start-yarn.sh
+jps
+  -> must show NameNode, DataNode, ResourceManager, NodeManager
+
+hdfs dfs -mkdir -p /user/hadoop/input
+hdfs dfs -put -f employees.csv /user/hadoop/input/
+hdfs dfs -ls /user/hadoop/input
+
+mkdir -p classes
+javac -cp "$(hadoop classpath)" -d classes Payroll.java
+jar -cvf payroll.jar -C classes .
+
+hdfs dfs -rm -r -f /user/hadoop/output
+hadoop jar payroll.jar Payroll /user/hadoop/input /user/hadoop/output
+hdfs dfs -cat /user/hadoop/output/part-r-00000
+
+stop-yarn.sh
+stop-dfs.sh
+
+(start-dfs.sh not found? use $HADOOP_HOME/sbin/start-dfs.sh)
+
+============================================================
+B. WINDOWS CMD
+============================================================
+cd C:\Users\26120040\Desktop\IT5701-exam-kit\3-HADOOP
+
+start-dfs.cmd
+start-yarn.cmd
+jps
+(not found? use %HADOOP_HOME%\sbin\start-dfs.cmd)
+
+hdfs dfs -mkdir -p /user/hadoop/input
+hdfs dfs -put -f employees.csv /user/hadoop/input/
+
+mkdir classes
+for /f "delims=" %i in ('hadoop classpath') do set CP=%i
+javac -cp "%CP%" -d classes Payroll.java
+jar -cvf payroll.jar -C classes .
+
+hdfs dfs -rm -r -f /user/hadoop/output
+hadoop jar payroll.jar Payroll /user/hadoop/input /user/hadoop/output
+hdfs dfs -cat /user/hadoop/output/part-r-00000
+
+stop-yarn.cmd
+stop-dfs.cmd
+
+============================================================
+C. HDFS / YARN WON'T START -> LOCAL MODE (no daemons needed)
+============================================================
+Uses normal folders on your PC instead of HDFS.
+Compile + jar same as above, then:
+
+Ubuntu/WSL:
+  mkdir -p in && cp employees.csv in/
+  rm -rf out
+  hadoop jar payroll.jar Payroll -fs file:/// -jt local in out
+  cat out/part-r-00000
+
+Windows:
+  mkdir in && copy employees.csv in\
+  rmdir /s /q out
+  hadoop jar payroll.jar Payroll -fs file:/// -jt local in out
+  type out\part-r-00000
+
+============================================================
+D. WORD COUNT
+============================================================
+Same steps, with:
+  input file : input.txt
+  compile    : javac -cp "$(hadoop classpath)" -d classes WordCount.java
+  jar        : jar -cvf wc.jar -C classes .
+  run        : hadoop jar wc.jar WordCount /user/hadoop/input /user/hadoop/output
+(put only input.txt in the input folder, or use a new folder like /user/hadoop/wcinput)
+
+============================================================
+E. NO HADOOP AT ALL -> PYTHON (shows same map -> reduce logic)
+============================================================
+cd python-backup
+Ubuntu/WSL : cat ../employees.csv | python3 mapper.py 2 3 | sort | python3 reducer.py sum
+Windows    : type ..\employees.csv | py mapper.py 2 3 | sort | py reducer.py sum
+
+Same python files on real Hadoop (Hadoop Streaming, Ubuntu/WSL):
+  hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-*.jar \
+    -files mapper.py,reducer.py \
+    -mapper "python3 mapper.py 2 3" -reducer "python3 reducer.py sum" \
+    -input /user/hadoop/input -output /user/hadoop/output
+  (mapper.py <keyCol> <valueCol>   reducer.py <sum|avg|count|max|min>)
+
+============================================================
+F. EXAM DATASETS WITH GroupBy.java (no code change)
+============================================================
+Ubuntu/WSL (Windows: same, use the classpath line from section B):
+  mkdir -p classes
+  javac -cp "$(hadoop classpath)" -d classes GroupBy.java
+  jar -cvf groupby.jar -C classes .
+
+  hdfs dfs -mkdir -p /user/hadoop/retail
+  hdfs dfs -put -f datasets/retail_sales.csv /user/hadoop/retail/
+  hdfs dfs -rm -r -f /user/hadoop/out1
+  hadoop jar groupby.jar GroupBy /user/hadoop/retail /user/hadoop/out1 3 4 sum
+  hdfs dfs -cat /user/hadoop/out1/part-r-00000
+
+  args: <keyCol> <valueCol> <sum|avg|count|max|min> [filterCol=value]
+  more examples + expected output: HADOOP-DATASET-GUIDE.txt
+
+  Local mode (no HDFS):
+  hadoop jar groupby.jar GroupBy -fs file:/// -jt local datasets/retail_sales.csv out1 3 4 sum
+  cat out1/part-r-00000
+
+Each dataset in its own HDFS folder (input folder = all files inside are read).

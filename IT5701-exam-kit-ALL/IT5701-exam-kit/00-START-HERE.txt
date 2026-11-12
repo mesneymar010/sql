@@ -1,0 +1,88 @@
+IT5701 LAB EXAM KIT
+Unzip to Desktop -> C:\Users\26120040\Desktop\IT5701-exam-kit
+
+============================================================
+EXAM FLOW (do this every time)
+============================================================
+1. Read the question. Which part?  SQL / PL-SQL  or  MongoDB  or  Hadoop
+2. Which data?  one of the 9 CSVs below, a lab exercise (LA1-LA5), or a new CSV
+3. LOAD THE DATA FIRST (1 command, never type rows by hand)
+4. Open the matching file, Ctrl+F the concept (GROUP BY, TRIGGER, CURSOR, $group ...)
+5. Copy, change names/columns, run, check output
+
+============================================================
+FOLDERS
+============================================================
+0-DATASETS-CSV\          the 9 exam CSVs (original)
+1-SQL-PLSQL\
+   00-help-sqlplus-commands-errors.sql   settings, SHOW ERRORS, error fixes, PL/SQL skeletons
+   la1..la4 *.sql                        lab exercises (data included)
+   datasets\sql-<name>.sql               data + 10 queries + procedure, function, trigger, cursor
+   datasets\data-only\load-<name>.sql    only CREATE TABLE + INSERT
+   datasets\data-only\load-all-datasets.sql   all 9 tables in one go
+   tools\csv_to_sql.py                   ANY new CSV -> CREATE TABLE + INSERT
+2-MONGODB\
+   00-help-mongodb-pymongo-commands-errors.txt   start server, install, SQL->Mongo table, errors
+   la5-*                                  lab exercise files
+   datasets\mongo-<name>.js              insertMany + finds + aggregates + update/delete
+   datasets\data-only\load-all-datasets.js
+   pymongo-csv-load-and-query.py         ANY CSV -> MongoDB + group/sum/avg/top3 (python)
+   tools\csv_to_mongo_js.py              ANY new CSV -> insertMany to paste in shell
+3-HADOOP\
+   00-RUN-STEPS.txt                      commands in order (Ubuntu/WSL, Windows, local mode)
+   00-help-hadoop-commands-errors.txt    start/stop, HDFS, error fixes, install
+   Payroll.java                          template to WRITE (mapper/reducer/driver)
+   HOW-TO-CHANGE-PAYROLL.txt             sum/avg/count/max/min/filter/computed/decimals
+   GroupBy.java                          RUN any group-by with arguments, no code change
+   HADOOP-DATASET-GUIDE.txt              every dataset: columns, questions, commands, expected output
+   WordCount.java, employees.csv, input.txt
+   datasets\                             the 9 CSVs (for HDFS put)
+   python-backup\mapper.py reducer.py    if Hadoop won't run
+
+============================================================
+LOAD DATA : ONE COMMAND
+============================================================
+SQL*Plus   @"C:\Users\26120040\Desktop\IT5701-exam-kit\1-SQL-PLSQL\datasets\data-only\load-retail-sales.sql"
+           (all 9:  ...\data-only\load-all-datasets.sql)
+MongoDB    open 2-MONGODB\datasets\mongo-retail-sales.js -> copy "use examdb" + LOAD DATA block -> paste in shell
+Hadoop     hdfs dfs -mkdir -p /user/hadoop/retail_sales
+           hdfs dfs -put -f datasets/retail_sales.csv /user/hadoop/retail_sales/
+
+NEW CSV given in exam (save it into the tools folder first):
+  cd C:\Users\26120040\Desktop\IT5701-exam-kit\1-SQL-PLSQL\tools
+  py csv_to_sql.py new.csv > new.sql          then  @new.sql  in SQL*Plus
+  cd ..\..\2-MONGODB\tools
+  py csv_to_mongo_js.py new.csv > new.js      then paste new.js in mongosh
+  (no python? -> help file section 10 has a 5-row INSERT template)
+
+Question with NO data at all: make 5-6 rows yourself, covering every case
+  (one row that passes each IF, one that fails, one NULL if the question mentions NULL)
+
+============================================================
+DATASET INDEX
+============================================================
+CSV                        SQL table / Mongo collection   group-by ideas
+bank_transactions          bank_transactions              Branch, Account_Type, Transaction_Type / Amount
+learning_activity          learning_activity              Course_ID, Student_ID, Activity_Type / Quiz_Score, Time
+library_transactions       library_transactions           Member_ID, Category / Fine_Amount, days kept
+medical_records            medical_records                Diagnosis, Gender, Specialization / Age, Blood_Sugar
+pharmacy_inventory         pharmacy_inventory             Category, Supplier_ID / Stock, Price, stock value
+retail_sales               retail_sales                   Category, Region, Customer_ID / Quantity, revenue
+shipment_records           shipment_records               Transport_Mode, Delivery_Status / Cost, Weight
+student_attendance         student_attendance             Department, Course_ID / attendance %
+web_clicks                 web_clicks                     Country, Device_Type, Session_ID / Duration
+
+Files per dataset:
+  1-SQL-PLSQL\datasets\sql-<name>.sql
+  2-MONGODB\datasets\mongo-<name>.js
+  3-HADOOP\HADOOP-DATASET-GUIDE.txt  (section <NAME>)
+  (<name> uses dashes: retail-sales, bank-transactions ...)
+
+============================================================
+FIRST LINES TO TYPE
+============================================================
+SQL*Plus : SET SERVEROUTPUT ON SIZE 1000000
+           SET LINESIZE 200
+           SET PAGESIZE 100
+MongoDB  : mongosh   (or mongo)    then   use examdb
+Hadoop   : hadoop version   then   start-dfs.sh / start-yarn.sh   then   jps

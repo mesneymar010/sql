@@ -1,0 +1,147 @@
+================================================================================
+APACHE PIG - RUNTIME COMMANDS, DATASETS, SQL MAPPING & DEBUGGING
+================================================================================
+
+--------------------------------------------------------------------------------
+1. CLI & GRUNT SHELL QUICK COMMANDS
+--------------------------------------------------------------------------------
+Terminal Execution:
+  pig -version                            Check Pig version
+  pig -x local                            Enter interactive Grunt shell in local mode
+  pig -x local script.pig                 Run entire script locally
+  pig -x mapreduce script.pig             Run script on Hadoop cluster
+  pig -x local -param IN=data.csv s.pig   Pass parameter dynamically ($IN inside script)
+
+Grunt Shell Commands (inside grunt>):
+  help                                    List commands
+  clear                                   Clear terminal screen
+  ls                                      List directory files
+  pwd                                     Print working directory
+  cat filename                            Display contents of file
+  sh <linux_cmd>                          Run any shell command (e.g., sh ls -la, sh head -n 5 f.csv)
+  fs <hdfs_cmd>                           Run HDFS command (e.g., fs -ls /user/hadoop)
+  quit                                    Exit Grunt shell
+
+Diagnostics:
+  DESCRIBE relation_name;                 Print column names and types
+  ILLUSTRATE relation_name;               Show mock execution table step-by-step
+  EXPLAIN relation_name;                  Show Logical, Physical, MapReduce plans
+  DUMP relation_name;                     Trigger execution and display output
+
+
+--------------------------------------------------------------------------------
+2. INSTANT DATASET GENERATORS (COPY-PASTE IN TERMINAL)
+--------------------------------------------------------------------------------
+# Dataset 1: students.csv
+cat << 'EOF' > students.csv
+101,Arun,CSE,85,90
+102,Bala,ECE,45,55
+103,Chitra,CSE,92,88
+104,Divya,MECH,60,70
+105,Ezhil,ECE,78,82
+106,Farooq,CSE,35,40
+107,Gowri,MECH,88,95
+EOF
+
+# Dataset 2: emp.csv
+cat << 'EOF' > emp.csv
+1,John,HR,45000,2020
+2,Alice,IT,75000,2019
+3,Bob,IT,65000,2021
+4,Charlie,Sales,30000,2022
+5,David,HR,55000,2018
+6,Emma,Sales,38000,2023
+7,Frank,IT,90000,2017
+EOF
+
+# Dataset 3: dept.csv
+cat << 'EOF' > dept.csv
+IT,Building_A,New York
+HR,Building_B,Chicago
+Sales,Building_C,Boston
+Marketing,Building_D,Austin
+EOF
+
+# Dataset 4: weather.csv
+cat << 'EOF' > weather.csv
+1950,22.5,1
+1950,25.0,1
+1950,9999.0,9
+1951,19.2,0
+1951,31.4,1
+1951,29.8,1
+1952,28.6,1
+1952,33.1,1
+1953,30.0,1
+EOF
+
+# Dataset 5: input.txt
+cat << 'EOF' > input.txt
+Apache Pig is a high level data flow platform
+Pig Latin queries compile into MapReduce jobs
+Pig is fast to write and easy to learn
+Hadoop and Pig process big data easily
+EOF
+
+
+--------------------------------------------------------------------------------
+3. SQL-TO-PIG TRANSLATION LOOKUP TABLE
+--------------------------------------------------------------------------------
+SQL Statement                        | Pig Latin Equivalent
+--------------------------------------------------------------------------------
+SELECT col1, col2 FROM tbl           | res = FOREACH tbl GENERATE col1, col2;
+SELECT * FROM tbl WHERE x > 10       | res = FILTER tbl BY x > 10;
+SELECT DISTINCT col FROM tbl         | p = FOREACH tbl GENERATE col; res = DISTINCT p;
+SELECT col AS alias FROM tbl         | res = FOREACH tbl GENERATE col AS alias;
+ORDER BY col DESC LIMIT 5            | s = ORDER tbl BY col DESC; res = LIMIT s 5;
+GROUP BY dept                        | g = GROUP tbl BY dept; (Key becomes 'group')
+SELECT dept, AVG(sal) GROUP BY dept  | g = GROUP tbl BY dept; 
+                                     | res = FOREACH g GENERATE group, AVG(tbl.sal);
+HAVING AVG(sal) > 50000              | Step 1: g = GROUP tbl BY dept;
+                                     | Step 2: s = FOREACH g GENERATE group, AVG(tbl.sal) AS a;
+                                     | Step 3: res = FILTER s BY a > 50000;
+CASE WHEN c THEN v1 ELSE v2 END      | (c ? v1 : v2)
+INNER JOIN t2 ON t1.id = t2.id       | res = JOIN t1 BY id, t2 BY id;
+LEFT JOIN t2 ON t1.id = t2.id        | res = JOIN t1 BY id LEFT OUTER, t2 BY id;
+UNION ALL                            | res = UNION t1, t2;
+WHERE name LIKE 'A%'                 | res = FILTER tbl BY name MATCHES 'A.*';
+WHERE col IS NOT NULL                | res = FILTER tbl BY col IS NOT NULL;
+
+
+--------------------------------------------------------------------------------
+4. EMERGENCY BUG FIXES (EXAM RUNTIME ERRORS)
+--------------------------------------------------------------------------------
+ERROR 1: "Cannot find field / Invalid field projection"
+  Cause: After 'GROUP tbl BY dept;', the original column name 'dept' is replaced.
+  Fix  : The group key is ALWAYS named 'group'. Other columns must be referenced
+         through the bag name: 'tbl.col_name'.
+         Wrong  : FOREACH g GENERATE dept, AVG(salary);
+         Correct: FOREACH g GENERATE group AS dept, AVG(tbl.salary);
+
+ERROR 2: Output contains unexpected "(NULL, NULL, NULL)"
+  Cause: Delimiter mismatch. Pig default delimiter is TAB ('\t').
+  Fix  : Specify CSV delimiter explicitly: USING PigStorage(',')
+
+ERROR 3: "Scalar has more than one value in the expression"
+  Cause: Trying to run an aggregate like AVG(salary) across table without grouping.
+  Fix  : Group everything first using:
+         all_g = GROUP tbl ALL;
+         res = FOREACH all_g GENERATE AVG(tbl.salary);
+
+ERROR 4: Ambiguous column name after JOIN
+  Cause: Both joined tables have a column with the same name.
+  Fix  : Prefix column with relation name and double colon:
+         clean = FOREACH joined GENERATE tableA::id AS id, tableB::dept AS dept;
+
+ERROR 5: Integer division truncating decimals to 0
+  Cause: Running (m1 + m2) / 2 drops floating points (e.g., 45 / 2 = 22).
+  Fix  : Divide by a floating point literal: ((m1 + m2) / 2.0)
+
+ERROR 6: "Unable to open iterator for alias..."
+  Cause: Input file path is wrong, or syntax failed in an earlier lazy step.
+  Fix  : 1. Verify file exists from Grunt: sh ls -la <filename>
+         2. Inspect schema at the failing step: DESCRIBE <alias>;
+
+ERROR 7: String comparison failing silently
+  Cause: Pig string comparisons are case-sensitive ('cse' != 'CSE').
+  Fix  : Normalize case: FILTER tbl BY UPPER(dept) == 'CSE';
